@@ -1,0 +1,1 @@
+I started avoiding proxychains in favour of socat - its less hacky than doing the weird library override stuff that proxychains does. But to answer your question I'd try using socat to forward port 53 of the DC locally then configuring that nameserver to resolve everything with *.client.lan or whatever is the suffix

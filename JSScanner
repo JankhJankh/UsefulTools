@@ -1,0 +1,24 @@
+async function asyncCall(val) {
+   try {
+        let response = await fetch('https://10.22.158.'+val);
+        let responseJson = await response.json();
+        console.log(val + ":" +responseJson);
+    } catch(error) {
+    }
+}
+
+for(i = 0; i < 256; i++){
+  console.log(i);
+  asyncCall(i);
+}
+
+
+async function asyncCall(val) {
+   try {
+        var xhr = new XMLHttpRequest();
+		xhr.open('GET', 'https://10.22.158.'+val, true);
+        console.log(val + ":" +responseJson);
+    } catch(error) {
+    }
+}
+

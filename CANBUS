@@ -1,0 +1,47 @@
+2A8#0A02BA02A4020002
+<Register>#<DATA BLOCK>
+Data blocks change in size and format, registers are shared between some instruments like temp gauge and check engine light.
+Things like speedo and RPMS have their own register.
+
+Run log in verbose mode
+canplayer -I candumptest.log -v
+
+Send specific CANBUS data:
+cansend can0 2A8#0A02BA02A4020002
+
+Best strategy to go in blind. Format the log file into cansend requests, then sort them, this will order them by register, then send each register one at a time and stop when you hit the instrument you want.
+Then analyse entropy in the requests to that register to find the right data sections to modify, hit em with a brute forcer.
+
+PORSCHE 911 966 Info:
+https://rennlist.com/forums/996-gt2-gt3-forum/966928-looking-for-can-bus-information-2.html
+
+
+SAMPLE python tools:
+
+#88 Miles per hour.
+import os
+for i in "0123456789ABCDEF":
+  for j in "0123456789ABCDEF":
+    for d in range(0,30):
+      a = "cansend can0 2A8#22FFFF25606C"
+      os.system(a)
+      print(a)
+
+#6000 RPM
+import os
+for i in "0123456789ABCDEF":
+  for j in "0123456789ABCDEF":
+    for d in range(0,30):
+      a = "cansend can0 280#22FFFF5CAA00"
+      os.system(a)
+      print(a)
+
+
+#MAX THE TEMP
+import os
+for i in "0123456789ABCDEF":
+  for j in "0123456789ABCDEF":
+    for d in range(0,30):
+      a = "cansend can0 289#FF"+i+j+"C123460A8C1A"
+      os.system(a)
+      print(a)

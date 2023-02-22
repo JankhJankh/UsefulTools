@@ -1,0 +1,1 @@
+194..195 | % { $a = $_; "80","443","445","3389","8080" | % {echo ((new-object Net.Sockets.TcpClient).Connect("172.28.52.$a",$_)) "Port $_ is open!"} 2>$null}

